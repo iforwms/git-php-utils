@@ -2,13 +2,11 @@
 
 require 'vendor/autoload.php';
 require './GitLabel.php';
-
-$dotenv = new Dotenv\Dotenv(__DIR__);
-$dotenv->load();
+require './env.php';
 
 $git = (new GitLabel(
-    $gitApiToken = getenv('GITHUB_API_TOKEN'),
+    $gitApiToken = $githubToken,
     $labelUrl = "https://gist.githubusercontent.com/iforwms/fabbbe262c344cbee3cde07360e84f34/raw/labels.json",
     $repoOwner = 'DominoChinese',
-    $repoName = 'dc-website'
-))->synchroniseLabels();
+    $repoName = 'dc-app'
+))->synchroniseLabels($forceDelete = false);

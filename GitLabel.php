@@ -29,8 +29,8 @@ class GitLabel
     protected $labelUrl;
     protected $repoOwner;
     protected $repoName;
-    public $templateLabels;
-    public $remoteLabels;
+    protected $templateLabels;
+    protected $remoteLabels;
 
     /**
      * GitLabel Constructor
@@ -93,25 +93,43 @@ class GitLabel
     /**
      * Remove an array of labels from a repository.
      *
-     * @param Array $repoLabels An array of labels
-     *
      * @return Null
      */
-    protected function synchroniseLabels()
+    public function synchroniseLabels()
     {
-        // If remote label not in template label, delete
-        // If remote label in template late, update colour
-        // If template label not in remote repo, create
-        foreach ($repoLabels as $label) {
-            if (! in_array($label['name'], $this->templateLabels)) {
-                $this->client->request(
-                    'DELETE',
-                    "/repos/{$this->repoOwner}/{$this->repoName}/labels/{$label['name']}",
-                    [
-                        'verify' => false,
-                        'headers' => ['Authorization' => 'token ' . $this->gitApiToken]
-                    ]
-                );
+        foreach ($this->templateLabels as $templateLabel) {
+            $inRemoteRepo = false;
+
+            foreach ($this->remoteLabels as $remoteLabel) {
+                if (mb_strtolower($templateLabel['name']) === mb_strtolower($remoteLabel['name'])) {
+                    $inRemoteRepo = true;
+
+                    echo "Updating label: ".$templateLabel['name'].PHP_EOL;
+
+                    $this->updateLabel($templateLabel);
+                }
+            }
+
+            if (!$inRemoteRepo) {
+                echo "Creating new label: ".$templateLabel['name'].PHP_EOL;
+
+                $this->createLabel($templateLabel);
+            }
+        }
+
+        foreach ($this->remoteLabels as $remoteLabel) {
+            $inTemplate = false;
+
+            foreach ($this->templateLabels as $templateLabel) {
+                if (mb_strtolower($templateLabel['name']) === mb_strtolower($remoteLabel['name'])) {
+                    $inTemplate = true;
+                }
+            }
+
+            if (!$inTemplate) {
+                echo "Deleting label: ".$remoteLabel['name'].PHP_EOL;
+
+                $this->deleteLabel($remoteLabel['name']);
             }
         }
     }
@@ -141,25 +159,45 @@ class GitLabel
     }
 
     /**
-     * Create a label in the specified repository.
+     * Update a label in the specified repository.
      *
      * @param Object $label Label object
      *
      * @return Null
      */
-    public function createLabel($label)
+    public function updateLabel($label)
     {
         $label['color'] = str_replace('#', '', $label['color']);
 
-        $label = json_encode($label);
+        $encodedLabel = json_encode($label);
 
         $this->client->request(
-            'POST',
-            "/repos/{$this->repoOwner}/{$this->repoName}/labels",
+            'PATCH',
+            "/repos/{$this->repoOwner}/{$this->repoName}/labels/".$label['name'],
             [
                 'verify' => false,
                 'headers' => ['Authorization' => 'token ' . $this->gitApiToken],
-                'body' => $label
+                'body' => $encodedLabel
+            ]
+        );
+    }
+
+    /**
+     * Delete a label in the specified repository.
+     *
+     * @param String $labelName Label name
+     *
+     * @return Null
+     */
+    public function deleteLabel($labelName)
+    {
+
+        $this->client->request(
+            'DELETE',
+            "/repos/{$this->repoOwner}/{$this->repoName}/labels/{$labelName}",
+            [
+                'verify' => false,
+                'headers' => ['Authorization' => 'token ' . $this->gitApiToken]
             ]
         );
     }

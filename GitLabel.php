@@ -4,6 +4,10 @@
  * This is a single class that updates labels in a GitHub repository with
  * those from a label template.
  *
+ * If labels currently exist, their color and description are updates.
+ *
+ * If a remote label does not exist in the template, they are removed.
+ *
  * PHP version 5
  *
  * @category Utility
@@ -91,11 +95,13 @@ class GitLabel
     }
 
     /**
-     * Remove an array of labels from a repository.
+     * Update labels from a template to a repository.
+     *
+     * @param Boolean $forceDelete Force deletion of remote labels not in template.
      *
      * @return Null
      */
-    public function synchroniseLabels()
+    public function synchroniseLabels($forceDelete = false)
     {
         foreach ($this->templateLabels as $templateLabel) {
             $inRemoteRepo = false;
@@ -127,9 +133,18 @@ class GitLabel
             }
 
             if (!$inTemplate) {
-                echo "Deleting label: ".$remoteLabel['name'].PHP_EOL;
+                if ($forceDelete) {
+                    echo "Deleting label: ".$remoteLabel['name'].PHP_EOL;
 
-                $this->deleteLabel($remoteLabel['name']);
+                    $this->deleteLabel($remoteLabel['name']);
+                } else {
+                    echo "Setting label color to black: ".$remoteLabel['name'].PHP_EOL;
+
+                    $remoteLabel['color'] = "000000";
+
+                    $this->updateLabel($remoteLabel);
+                }
+
             }
         }
     }

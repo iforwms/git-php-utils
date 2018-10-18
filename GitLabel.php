@@ -1,8 +1,8 @@
 <?php
 
 /**
- * This is a single class that replaces all labels in a GitHub repository with those
- * from a label template.
+ * This is a single class that updates labels in a GitHub repository with
+ * those from a label template.
  *
  * PHP version 5
  *
@@ -14,7 +14,7 @@
  */
 
 /**
- * A PHP Class for Resetting GitHub Repo Labels
+ * A PHP Class for Synchronising GitHub Repo Labels
  *
  * @category Utility
  * @package  GitHub_Label
@@ -29,8 +29,8 @@ class GitLabel
     protected $labelUrl;
     protected $repoOwner;
     protected $repoName;
-    protected $templateLabels;
-    protected $remoteLabels;
+    public $templateLabels;
+    public $remoteLabels;
 
     /**
      * GitLabel Constructor
@@ -76,7 +76,7 @@ class GitLabel
      *
      * @return Array An array of label objects
      */
-    protected function fetchLabelsFromRepo()
+    protected function fetchRemoteLabels()
     {
         $repoLabels = $this->client->request(
             'GET',
@@ -97,8 +97,11 @@ class GitLabel
      *
      * @return Null
      */
-    protected function synchroniseLabels($repoLabels)
+    protected function synchroniseLabels()
     {
+        // If remote label not in template label, delete
+        // If remote label in template late, update colour
+        // If template label not in remote repo, create
         foreach ($repoLabels as $label) {
             if (! in_array($label['name'], $this->templateLabels)) {
                 $this->client->request(
@@ -114,28 +117,50 @@ class GitLabel
     }
 
     /**
-     * Create labels in the specified repository.
+     * Create a label in the specified repository.
      *
-     * @param Array $labels Array of labels
+     * @param Object $label Label object
      *
      * @return Null
      */
-    public function createLabelsInRepo($labels)
+    public function createLabel($label)
     {
-        foreach ($labels as $label) {
-            $label['color'] = str_replace('#', '', $label['color']);
+        $label['color'] = str_replace('#', '', $label['color']);
 
-            $label = json_encode($label);
+        $label = json_encode($label);
 
-            $this->client->request(
-                'POST',
-                "/repos/{$this->repoOwner}/{$this->repoName}/labels",
-                [
-                    'verify' => false,
-                    'headers' => ['Authorization' => 'token ' . $this->gitApiToken],
-                    'body' => $label
-                ]
-            );
-        }
+        $this->client->request(
+            'POST',
+            "/repos/{$this->repoOwner}/{$this->repoName}/labels",
+            [
+                'verify' => false,
+                'headers' => ['Authorization' => 'token ' . $this->gitApiToken],
+                'body' => $label
+            ]
+        );
+    }
+
+    /**
+     * Create a label in the specified repository.
+     *
+     * @param Object $label Label object
+     *
+     * @return Null
+     */
+    public function createLabel($label)
+    {
+        $label['color'] = str_replace('#', '', $label['color']);
+
+        $label = json_encode($label);
+
+        $this->client->request(
+            'POST',
+            "/repos/{$this->repoOwner}/{$this->repoName}/labels",
+            [
+                'verify' => false,
+                'headers' => ['Authorization' => 'token ' . $this->gitApiToken],
+                'body' => $label
+            ]
+        );
     }
 }

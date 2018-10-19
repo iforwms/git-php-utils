@@ -110,14 +110,14 @@ class GitLabel
                 if (mb_strtolower($templateLabel['name']) === mb_strtolower($remoteLabel['name'])) {
                     $inRemoteRepo = true;
 
-                    echo "Updating label: ".$templateLabel['name'].PHP_EOL;
+                    echo "{$this->repoOwner}/{$this->repoName} Updating label: ".$templateLabel['name'].PHP_EOL;
 
                     $this->updateLabel($templateLabel);
                 }
             }
 
             if (!$inRemoteRepo) {
-                echo "Creating new label: ".$templateLabel['name'].PHP_EOL;
+                echo "{$this->repoOwner}/{$this->repoName} Creating new label: ".$templateLabel['name'].PHP_EOL;
 
                 $this->createLabel($templateLabel);
             }
@@ -134,13 +134,13 @@ class GitLabel
 
             if (!$inTemplate) {
                 if ($forceDelete) {
-                    echo "Deleting label: ".$remoteLabel['name'].PHP_EOL;
+                    echo "{$this->repoOwner}/{$this->repoName} Deleting label: ".$remoteLabel['name'].PHP_EOL;
 
                     $this->deleteLabel($remoteLabel['name']);
                 } else {
-                    echo "Setting label color to black: ".$remoteLabel['name'].PHP_EOL;
+                    echo "{$this->repoOwner}/{$this->repoName} Setting label color to black: ".$remoteLabel['name'].PHP_EOL;
 
-                    $remoteLabel['color'] = "000000";
+                    $remoteLabel['color'] = "22292f";
 
                     $this->updateLabel($remoteLabel);
                 }

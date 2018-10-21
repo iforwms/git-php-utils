@@ -37,7 +37,7 @@ class GitLabel
     protected $remoteLabels;
 
     /**
-     * GitLabel Constructor
+     * GitLabel Constructor.
      *
      * @param String $gitApiToken GitHub API Token
      * @param String $labelUrl    URL to Label Template JSON

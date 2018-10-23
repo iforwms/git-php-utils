@@ -12,7 +12,7 @@ if (defined('STDIN')) {
             $repoOwner = $argv[1],
             $repoName = $argv[2]
         ))
-        ->synchroniseLabels($forceDelete = isset($argv[3]);
+        ->synchroniseLabels($forceDelete = isset($argv[3]));
     }
 
     echo PHP_EOL;

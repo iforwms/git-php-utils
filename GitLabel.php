@@ -103,16 +103,19 @@ class GitLabel
      */
     public function synchroniseLabels($forceDelete = false)
     {
+        $regex = '/([\w]+) :[\w]+:/';
+        $replacement = '${1}';
+
         foreach ($this->templateLabels as $templateLabel) {
             $inRemoteRepo = false;
 
             foreach ($this->remoteLabels as $remoteLabel) {
-                if (mb_strtolower($templateLabel['name']) === mb_strtolower($remoteLabel['name'])) {
+                if (mb_strtolower(preg_replace($regex, $replacement, $templateLabel['name'])) === mb_strtolower(preg_replace($regex, $replacement, $remoteLabel['name']))) {
                     $inRemoteRepo = true;
 
                     echo "{$this->repoOwner}/{$this->repoName} Updating label: ".$templateLabel['name'].PHP_EOL;
 
-                    $this->updateLabel($templateLabel);
+                    $this->updateLabel($templateLabel, $remoteLabel['name']);
                 }
             }
 
@@ -127,7 +130,7 @@ class GitLabel
             $inTemplate = false;
 
             foreach ($this->templateLabels as $templateLabel) {
-                if (mb_strtolower($templateLabel['name']) === mb_strtolower($remoteLabel['name'])) {
+                if (mb_strtolower(preg_replace($regex, $replacement, $templateLabel['name'])) === mb_strtolower(preg_replace($regex, $replacement, $remoteLabel['name']))) {
                     $inTemplate = true;
                 }
             }
@@ -167,7 +170,10 @@ class GitLabel
             "/repos/{$this->repoOwner}/{$this->repoName}/labels",
             [
                 'verify' => false,
-                'headers' => ['Authorization' => 'token ' . $this->gitApiToken],
+                'headers' => [
+                    'Authorization' => 'token ' . $this->gitApiToken,
+                    'Accept' => 'application/vnd.github.symmetra-preview+json'
+                ],
                 'body' => $label
             ]
         );
@@ -180,18 +186,23 @@ class GitLabel
      *
      * @return Null
      */
-    public function updateLabel($label)
+    public function updateLabel($label, $currentName = null)
     {
         $label['color'] = str_replace('#', '', $label['color']);
 
         $encodedLabel = json_encode($label);
 
+        $labelName = $currentName ? $currentName : $label['name'];
+
         $this->client->request(
             'PATCH',
-            "/repos/{$this->repoOwner}/{$this->repoName}/labels/".$label['name'],
+            "/repos/{$this->repoOwner}/{$this->repoName}/labels/".$labelName,
             [
                 'verify' => false,
-                'headers' => ['Authorization' => 'token ' . $this->gitApiToken],
+                'headers' => [
+                    'Authorization' => 'token ' . $this->gitApiToken,
+                    'Accept' => 'application/vnd.github.symmetra-preview+json'
+                ],
                 'body' => $encodedLabel
             ]
         );

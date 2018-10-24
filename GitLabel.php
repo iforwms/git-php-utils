@@ -103,7 +103,7 @@ class GitLabel
      */
     public function synchroniseLabels($forceDelete = false)
     {
-        $regex = '/(?>:[\w]+:)? ?([\w ]+)/';
+        $regex = '/(?::[\w]+:)? ([\w ]+)/';
         $replacement = '${1}';
 
         foreach ($this->templateLabels as $templateLabel) {

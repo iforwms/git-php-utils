@@ -26,12 +26,15 @@
  * @license  [http://mit.com] MIT
  * @link     http://github.com/iforwms/gitLabel
  */
-class GitLabel
+class GitUtils
 {
     protected $client;
     protected $gitApiToken;
     protected $labelUrl;
     protected $repoFullName;
+    protected $fromRepo;
+    protected $toRepo;
+    protected $issuesToCopy;
     protected $templateLabels;
     protected $remoteLabels;
 
@@ -39,23 +42,142 @@ class GitLabel
      * GitLabel Constructor.
      *
      * @param String $gitApiToken GitHub API Token
-     * @param String $labelUrl    URL to Label Template JSON
-     * @param String $repoOwner   Repo Owner
-     * @param String $repoName    Repo Name
      */
-    public function __construct($gitApiToken, $labelUrl, $repoOwner, $repoName)
+    public function __construct($gitApiToken)
     {
         $this->client = new GuzzleHttp\Client(
             [
-                'base_uri' => "https://api.github.com/repos/{$repoOwner}/{$repoName}/",
+                'base_uri' => "https://api.github.com/",
                 'timeout'  => 5,
             ]
         );
         $this->gitApiToken = $gitApiToken;
-        $this->labelUrl = $labelUrl;
-        $this->repoFullName = "{$repoOwner}/{$repoName}";
-        $this->templateLabels = $this->fetchTemplateLabels();
-        $this->remoteLabels = $this->fetchRemoteLabels();
+    }
+
+    /**
+     * Copy issues from one repository to another.
+     *
+     * @param string  $fromRepo    Owner/Name of repo to copy issues from.
+     * @param string  $toRepo      Owner/Name of repo to copy issues to.
+     * @param boolean $forceDelete Whether issues should be deleted from repo.
+     *
+     * @return null
+     */
+    public function copyIssues($fromRepo, $toRepo, $forceDelete = false)
+    {
+        foreach ($this->fetchIssuesFromRepo($fromRepo) as $issue) {
+            echo "Copying issue from '{$fromRepo}' to '{$toRepo}': {$issue['title']}".PHP_EOL;
+
+            $this->createIssue($toRepo, $this->parseRemoteIssue($issue));
+
+            if ($forceDelete) {
+                echo "{$fromRepo} Closing issue: {$issue['title']}".PHP_EOL;
+
+                $this->closeIssue($fromRepo, $issue['number']);
+            }
+        }
+    }
+
+    /**
+     * Closes an issue in a repo.
+     *
+     * @param string $repoUrl     Repo owner and name.
+     * @param string $issueNumber Issue name.
+     *
+     * @return null
+     */
+    public function closeIssue($repoUrl, $issueNumber)
+    {
+        $this->client->request(
+            'PATCH',
+            "repos/{$repoUrl}/issues/{$issueNumber}",
+            [
+                'verify' => false,
+                'headers' => [
+                    'Authorization' => "token {$this->gitApiToken}",
+                    'Accept' => 'application/vnd.github.symmetra-preview+json'
+                ],
+                'body' => json_encode(['state' => 'closed'])
+            ]
+        );
+    }
+
+    /**
+     * Create a new Gith]Hub issue.
+     *
+     * @param string $repoUrl Full owner and name of repo.
+     * @param object $issue   GitHub issue JSON string.
+     *
+     * @return null
+     */
+    public function createIssue($repoUrl, $issue)
+    {
+        $this->client->request(
+            'POST',
+            "repos/{$repoUrl}/issues",
+            [
+                'verify' => false,
+                'headers' => [
+                    'Authorization' => "token {$this->gitApiToken}",
+                    'Accept' => 'application/vnd.github.symmetra-preview+json'
+                ],
+                'body' => $issue
+            ]
+        );
+    }
+
+    /**
+     * Parse full issue object into issue request object.
+     *
+     * @param object $issue GitHub issue object.
+     *
+     * @return array
+     */
+    public function parseRemoteIssue($issue)
+    {
+        $assignees = [];
+        $labels = [];
+
+        foreach ($issue['assignees'] as $assignee) {
+            $assignees[] = $assignee['login'];
+        }
+
+        foreach ($issue['labels'] as $label) {
+            $labels[] = $label['name'];
+        }
+
+        return json_encode(
+            [
+                'title' => $issue['title'],
+                'body' => $issue['body'],
+                'assignees' => $assignees,
+                'labels' => $labels,
+            ]
+        );
+    }
+
+    /**
+     * Fetches issues from a repo.
+     *
+     * @param string $repoName Repo owner and name.
+     *
+     * @return array
+     */
+    public function fetchIssuesFromRepo($repoName)
+    {
+        $repoIssues = $this->client->request(
+            'GET',
+            "repos/{$repoName}/issues",
+            [
+                'verify' => false,
+                'headers' => [
+                    'Authorization' => "token {$this->gitApiToken}",
+                    'Accept' => 'application/vnd.github.symmetra-preview+json'
+                ],
+            ]
+        )->getBody();
+
+        return json_decode($repoIssues->getContents(), true);
     }
 
     /**
@@ -82,10 +204,13 @@ class GitLabel
     {
         $repoLabels = $this->client->request(
             'GET',
-            "labels",
+            "repos/{$this->repoFullName}/labels",
             [
                 'verify' => false,
-                'headers' => ['Authorization' => 'token ' . $this->gitApiToken]
+                'headers' => [
+                    'Authorization' => "token {$this->gitApiToken}",
+                    'Accept' => 'application/vnd.github.symmetra-preview+json'
+                ],
             ]
         )->getBody();
 
@@ -107,6 +232,25 @@ class GitLabel
 
         return mb_strtolower(preg_replace($regex, $replacement, $templateName)) ===
             mb_strtolower(preg_replace($regex, $replacement, $remoteName));
+    }
+
+    /**
+     * Prepare class for synchronising labels.
+     *
+     * @param string  $labelUrl     URL for label template.
+     * @param string  $repoFullName Full name of repo.
+     * @param boolean $forceDelete  Whether labels not in template should be deleted.
+     *
+     * @return null
+     */
+    public function beginSynchroniseLabels($labelUrl, $repoFullName, $forceDelete)
+    {
+
+        $this->labelUrl = $labelUrl;
+        $this->repoFullName = $repoFullName;
+        $this->templateLabels = $this->fetchTemplateLabels();
+        $this->remoteLabels = $this->fetchRemoteLabels();
+        $this->synchroniseLabels($forceDelete);
     }
 
     /**
@@ -179,7 +323,7 @@ class GitLabel
 
         $this->client->request(
             'POST',
-            "labels",
+            "repos/{$this->repoFullName}/labels",
             [
                 'verify' => false,
                 'headers' => [
@@ -208,7 +352,7 @@ class GitLabel
 
         $this->client->request(
             'PATCH',
-            "labels/{$labelName}",
+            "repos/{$this->repoFullName}/labels/{$labelName}",
             [
                 'verify' => false,
                 'headers' => [
@@ -229,10 +373,9 @@ class GitLabel
      */
     public function deleteLabel($labelName)
     {
-
         $this->client->request(
             'DELETE',
-            "labels/{$labelName}",
+            "repos/{$this->repoFullName}/labels/{$labelName}",
             [
                 'verify' => false,
                 'headers' => ['Authorization' => "token {$this->gitApiToken}"]

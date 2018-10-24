@@ -1,24 +1,25 @@
 <?php
 
 require 'vendor/autoload.php';
-require './GitLabel.php';
+require './GitUtils.php';
 require './env.php';
 
 if (defined('STDIN')) {
-    if (isset($argv) && isset($argv[1]) && isset($argv[2])) {
-        return (new GitLabel(
-            $gitApiToken = $githubToken,
-            $labelUrl = "https://gist.githubusercontent.com/iforwms/fabbbe262c344cbee3cde07360e84f34/raw/labels.json",
-            $repoOwner = $argv[1],
-            $repoName = $argv[2]
+    if (isset($argv) && isset($argv[1])) {
+        return (new GitUtils(
+            $gitApiToken = $githubToken
         ))
-        ->synchroniseLabels($forceDelete = isset($argv[3]));
+        ->beginSynchroniseLabels(
+            $labelUrl = "https://gist.githubusercontent.com/iforwms/fabbbe262c344cbee3cde07360e84f34/raw/labels.json",
+            $repoFullName = $argv[1],
+            $forceDelete = isset($argv[2])
+        );
     }
 
     echo PHP_EOL;
     echo "ERROR: Failed to run.".PHP_EOL;
     echo PHP_EOL;
-    echo "Please provide the [REPO_OWNER] and [REPO_NAME] as the first and second arguements respectively.".PHP_EOL;
+    echo "Please provide the [REPO_OWNER/REPO_NAME] as the first arguement, and optionally whether you wan to delete non-existing labels.".PHP_EOL;
     echo PHP_EOL;
     echo "E.g. php index.php repo_owner repo_name.";
     echo PHP_EOL;

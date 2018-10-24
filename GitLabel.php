@@ -93,16 +93,21 @@ class GitLabel
     }
 
     /**
-     * Update labels from a template to a repository.
+     * Check if a template label already exists in remote repo.
      *
-     * @param Boolean $forceDelete Force deletion of remote labels not in template.
+     * @param string $templateName Template label name.
+     * @param string $remoteName   Remote label name.
      *
-     * @return Null
+     * @return boolean
      */
-    public function synchroniseLabels($forceDelete = false)
+    public function labelExistsInRepo($templateName, $remoteName)
     {
-        $regex = '/(?::[\w]+:)? ([\w ]+)/';
+        $regex = "/(?::[\w]+:)? ([\w ]+)/";
         $replacement = '${1}';
+
+        return mb_strtolower(preg_replace($regex, $replacement, $templateName)) ===
+            mb_strtolower(preg_replace($regex, $replacement, $remoteName));
+    }
 
     /**
      * Update labels from a template to a repository.
@@ -117,7 +122,7 @@ class GitLabel
             $inRemoteRepo = false;
 
             foreach ($this->remoteLabels as $remoteLabel) {
-                if (mb_strtolower(preg_replace($regex, $replacement, $templateLabel['name'])) === mb_strtolower(preg_replace($regex, $replacement, $remoteLabel['name']))) {
+                if ($this->labelExistsInRepo($remoteLabel['name'], $templateLabel['name'])) {
                     $inRemoteRepo = true;
 
                     echo "{$this->repoFullName} Updating label: '{$remoteLabel['name']}' to '{$templateLabel['name']}'".PHP_EOL;
@@ -137,7 +142,7 @@ class GitLabel
             $inTemplate = false;
 
             foreach ($this->templateLabels as $templateLabel) {
-                if (mb_strtolower(preg_replace($regex, $replacement, $templateLabel['name'])) === mb_strtolower(preg_replace($regex, $replacement, $remoteLabel['name']))) {
+                if ($this->labelExistsInRepo($remoteLabel['name'], $templateLabel['name'])) {
                     $inTemplate = true;
                 }
             }
@@ -162,9 +167,9 @@ class GitLabel
     /**
      * Create a label in the specified repository.
      *
-     * @param Object $label Label object
+     * @param object $label Label object
      *
-     * @return Null
+     * @return null
      */
     public function createLabel($label)
     {

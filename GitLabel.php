@@ -31,8 +31,7 @@ class GitLabel
     protected $client;
     protected $gitApiToken;
     protected $labelUrl;
-    protected $repoOwner;
-    protected $repoName;
+    protected $repoFullName;
     protected $templateLabels;
     protected $remoteLabels;
 
@@ -48,14 +47,13 @@ class GitLabel
     {
         $this->client = new GuzzleHttp\Client(
             [
-                'base_uri' => 'https://api.github.com',
+                'base_uri' => "https://api.github.com/repos/{$repoOwner}/{$repoName}/",
                 'timeout'  => 5,
             ]
         );
         $this->gitApiToken = $gitApiToken;
         $this->labelUrl = $labelUrl;
-        $this->repoOwner = $repoOwner;
-        $this->repoName = $repoName;
+        $this->repoFullName = "{$repoOwner}/{$repoName}";
         $this->templateLabels = $this->fetchTemplateLabels();
         $this->remoteLabels = $this->fetchRemoteLabels();
     }
@@ -84,7 +82,7 @@ class GitLabel
     {
         $repoLabels = $this->client->request(
             'GET',
-            "/repos/{$this->repoOwner}/{$this->repoName}/labels",
+            "labels",
             [
                 'verify' => false,
                 'headers' => ['Authorization' => 'token ' . $this->gitApiToken]
@@ -106,6 +104,15 @@ class GitLabel
         $regex = '/(?::[\w]+:)? ([\w ]+)/';
         $replacement = '${1}';
 
+    /**
+     * Update labels from a template to a repository.
+     *
+     * @param boolean $forceDelete Force deletion of remote labels not in template.
+     *
+     * @return null
+     */
+    public function synchroniseLabels($forceDelete = false)
+    {
         foreach ($this->templateLabels as $templateLabel) {
             $inRemoteRepo = false;
 
@@ -113,14 +120,14 @@ class GitLabel
                 if (mb_strtolower(preg_replace($regex, $replacement, $templateLabel['name'])) === mb_strtolower(preg_replace($regex, $replacement, $remoteLabel['name']))) {
                     $inRemoteRepo = true;
 
-                    echo "{$this->repoOwner}/{$this->repoName} Updating label: ".$templateLabel['name'].PHP_EOL;
+                    echo "{$this->repoFullName} Updating label: '{$remoteLabel['name']}' to '{$templateLabel['name']}'".PHP_EOL;
 
                     $this->updateLabel($templateLabel, $remoteLabel['name']);
                 }
             }
 
             if (!$inRemoteRepo) {
-                echo "{$this->repoOwner}/{$this->repoName} Creating new label: ".$templateLabel['name'].PHP_EOL;
+                echo "{$this->repoFullName} Creating new label: {$templateLabel['name']}".PHP_EOL;
 
                 $this->createLabel($templateLabel);
             }
@@ -137,11 +144,11 @@ class GitLabel
 
             if (!$inTemplate) {
                 if ($forceDelete) {
-                    echo "{$this->repoOwner}/{$this->repoName} Deleting label: ".$remoteLabel['name'].PHP_EOL;
+                    echo "{$this->repoFullName} Deleting label: {$remoteLabel['name']}".PHP_EOL;
 
                     $this->deleteLabel($remoteLabel['name']);
                 } else {
-                    echo "{$this->repoOwner}/{$this->repoName} Setting label color to black: ".$remoteLabel['name'].PHP_EOL;
+                    echo "{$this->repoFullName} Setting label color to black: {$remoteLabel['name']}".PHP_EOL;
 
                     $remoteLabel['color'] = "22292f";
 
@@ -167,11 +174,11 @@ class GitLabel
 
         $this->client->request(
             'POST',
-            "/repos/{$this->repoOwner}/{$this->repoName}/labels",
+            "labels",
             [
                 'verify' => false,
                 'headers' => [
-                    'Authorization' => 'token ' . $this->gitApiToken,
+                    'Authorization' => "token {$this->gitApiToken}",
                     'Accept' => 'application/vnd.github.symmetra-preview+json'
                 ],
                 'body' => $label
@@ -196,11 +203,11 @@ class GitLabel
 
         $this->client->request(
             'PATCH',
-            "/repos/{$this->repoOwner}/{$this->repoName}/labels/".$labelName,
+            "labels/{$labelName}",
             [
                 'verify' => false,
                 'headers' => [
-                    'Authorization' => 'token ' . $this->gitApiToken,
+                    'Authorization' => "token {$this->gitApiToken}",
                     'Accept' => 'application/vnd.github.symmetra-preview+json'
                 ],
                 'body' => $encodedLabel
@@ -220,10 +227,10 @@ class GitLabel
 
         $this->client->request(
             'DELETE',
-            "/repos/{$this->repoOwner}/{$this->repoName}/labels/{$labelName}",
+            "labels/{$labelName}",
             [
                 'verify' => false,
-                'headers' => ['Authorization' => 'token ' . $this->gitApiToken]
+                'headers' => ['Authorization' => "token {$this->gitApiToken}"]
             ]
         );
     }

@@ -26,24 +26,25 @@ if (defined('STDIN')) {
         echo "Optionally add a second argument to delete labels not in the template.".PHP_EOL;
         echo PHP_EOL;
         echo "(repo_owner/repo_name [delete issue]): ";
-        echo PHP_EOL;
 
         $handle = fopen("php://stdin", "r");
         $input = trim(fgets($handle));
 
+        echo PHP_EOL;
+
         $input = explode(' ', $input);
 
         if (isset($input) && isset($input[0])) {
-            return (new GitUtils(
-                $gitApiToken = $githubToken
-            ))
-            ->beginSynchroniseLabels(
-                $labelUrl = "https://gist.githubusercontent.com/iforwms/fabbbe262c344cbee3cde07360e84f34/raw/labels.json",
-                $repoFullName = $input[0],
-                $forceDelete = isset($input[1])
-            );
+            return (new GitUtils($githubToken))
+                ->beginSynchroniseLabels(
+                    $labelUrl = "https://gist.githubusercontent.com/iforwms/fabbbe262c344cbee3cde07360e84f34/raw/labels.json",
+                    $repoFullName = $input[0],
+                    $forceDelete = isset($input[1])
+                );
         }
+
         echo PHP_EOL."Done!";
+
         fclose($handle);
     }
 
@@ -55,21 +56,22 @@ if (defined('STDIN')) {
 
         $handle = fopen("php://stdin", "r");
         $input = trim(fgets($handle));
+
         echo PHP_EOL;
 
         $input = explode(' ', $input);
 
         if (isset($input) && isset($input[0]) && isset($input[1])) {
-            return (new GitUtils(
-                $gitApiToken = $githubToken
-            ))
-            ->copyIssues(
-                $fromRepo = $input[0],
-                $toRepo = $input[1],
-                $forceDelete = isset($input[2])
-            );
+            return (new GitUtils($githubToken))
+                ->copyIssues(
+                    $fromRepo = $input[0],
+                    $toRepo = $input[1],
+                    $forceDelete = isset($input[2])
+                );
         }
+
         echo PHP_EOL."Done!";
+
         fclose($handle);
     }
 }

@@ -227,11 +227,14 @@ class GitUtils
      */
     public function labelExistsInRepo($templateName, $remoteName)
     {
-        $regex = "/(?::[\w]+:)? ([\w ]+)/";
-        $replacement = '${1}';
+        return mb_strtolower($templateName) ===
+            mb_strtolower($remoteName);
 
-        return mb_strtolower(preg_replace($regex, $replacement, $templateName)) ===
-            mb_strtolower(preg_replace($regex, $replacement, $remoteName));
+        // $regex = "/(?::[\w]+:)? ([\w ]+)/";
+        // $replacement = '${1}';
+
+        // return mb_strtolower(preg_replace($regex, $replacement, $templateName)) ===
+        //     mb_strtolower(preg_replace($regex, $replacement, $remoteName));
     }
 
     /**
